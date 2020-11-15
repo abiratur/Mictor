@@ -15,7 +15,6 @@ namespace Mictor
         private readonly ActorPool _owner;
         private readonly SemaphoreSlim _semaphoreSlim = new SemaphoreSlim(0);
         private readonly ConcurrentQueue<Func<Task>> _workQueue = new ConcurrentQueue<Func<Task>>();
-        private Task? _task;
 
         public Actor(ActorPool owner, string key)
         {
@@ -56,10 +55,8 @@ namespace Mictor
 
         public void Start()
         {
-            _task = RunAsync();
+            _ = RunAsync();
         }
-
-        public bool IsCompleted => _task!.IsCompleted;
 
         public int Consumers { get; set; }
 
@@ -106,6 +103,11 @@ namespace Mictor
         public void Dispose()
         {
             DecreaseHandle();
+        }
+
+        public ActorSnapshot TakeSnapshot()
+        {
+            return new ActorSnapshot(Consumers, _workQueue.Count);
         }
     }
 }

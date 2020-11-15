@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace Mictor
 {
@@ -39,6 +41,16 @@ namespace Mictor
                     return worker;
                 }
             }
+        }
+
+        public ActorPoolSnapshot TakeSnapshot()
+        {
+            Dictionary<string, ActorSnapshot> dict = _actors.ToDictionary(
+                kvp => kvp.Key,
+                kvp => kvp.Value.TakeSnapshot()
+            );
+
+            return new ActorPoolSnapshot(dict);
         }
 
         internal int EstimatedCount => _actors.Count;
