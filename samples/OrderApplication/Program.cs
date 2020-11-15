@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 using Mictor;
 
@@ -7,7 +6,7 @@ namespace OrderApplication
 {
     class Program
     {
-        static void Main(string[] args)
+        static void Main()
         {
             var orderId = Guid.NewGuid().ToString();
 
@@ -27,9 +26,9 @@ namespace OrderApplication
         {
             ActorPoolSnapshot snapshot = ActorPool.Shared.TakeSnapshot();
 
-            foreach (KeyValuePair<string, ActorSnapshot> kvp in snapshot)
+            foreach ((string key, ActorSnapshot actorSnapshot) in snapshot)
             {
-                Console.WriteLine($"{kvp.Key} => {kvp.Value}");
+                Console.WriteLine($"{key} => {actorSnapshot}");
             }
         }
 
