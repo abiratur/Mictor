@@ -10,27 +10,35 @@ namespace Mictor
     /// The Actor.Dispose() is called, The worker has 0 consumers AND has no more messages to consume AND worker is blocked on semaphore.Wait()
     /// in this case we need to make sure that no more handles are being created
     /// </summary>
-    internal class Actor : IActor
+    internal class Actor
     {
         private readonly ActorPool _owner;
         private readonly SemaphoreSlim _semaphoreSlim = new SemaphoreSlim(0);
         private readonly ConcurrentQueue<Func<Task>> _workQueue = new ConcurrentQueue<Func<Task>>();
 
-        public Actor(ActorPool owner, string key)
+        private bool _disposed;
+        private int _handles;
+
+        private Actor(ActorPool owner, string key)
         {
             _owner = owner;
             Key = key;
         }
-        
+
+        internal static Actor Create(ActorPool owner, string key, out ActorHandle actorHandle)
+        {
+            var actor = new Actor(owner, key);
+            actorHandle = new ActorHandle(actor);
+            
+            return actor;
+        }
+
         public string Key { get; }
 
         public void Enqueue(Func<Task> work)
         {
-            lock (this)
-            {
-                _workQueue.Enqueue(work);
-                _semaphoreSlim.Release();
-            }
+            _workQueue.Enqueue(work);
+            _semaphoreSlim.Release();
         }
 
         public Task<TResult> Enqueue<TResult>(Func<Task<TResult>> work)
@@ -52,13 +60,31 @@ namespace Mictor
 
             return tcs.Task;
         }
+        
+        internal ActorSnapshot TakeSnapshot()
+        {
+            return new ActorSnapshot(_handles, _workQueue.Count);
+        }
 
-        public void Start()
+        internal void Start()
         {
             _ = RunAsync();
         }
 
-        public int Consumers { get; set; }
+        internal bool TryCreateHandle(out ActorHandle? actorHandle)
+        {
+            lock (this)
+            {
+                if (_disposed)
+                {
+                    actorHandle = default;
+                    return false;
+                }
+
+                actorHandle = new ActorHandle(this);
+                return true;
+            }
+        }
 
         private async Task RunAsync()
         {
@@ -68,7 +94,7 @@ namespace Mictor
 
                 lock (this)
                 {
-                    if (_workQueue.Count == 0 && Consumers == 0)
+                    if (_workQueue.Count == 0 && _handles == 0)
                     {
                         // at this point:
                         // 1. there are no consumers - meaning no more work can be queued while inside this lock
@@ -76,6 +102,7 @@ namespace Mictor
                         // 3. no more work can be added (because of lock)
 
                         _owner.Return(this);
+                        _disposed = true;
                         return;
                     }
                 }
@@ -96,23 +123,18 @@ namespace Mictor
             }
         }
 
-        internal void DecreaseHandle()
+        internal void IncrementHandles()
+        {
+            _handles++;
+        }
+
+        internal void DecrementHandles()
         {
             lock (this)
             {
-                Consumers--;
+                _handles--;
                 _semaphoreSlim.Release();
             }
-        }
-
-        public void Dispose()
-        {
-            DecreaseHandle();
-        }
-
-        public ActorSnapshot TakeSnapshot()
-        {
-            return new ActorSnapshot(Consumers, _workQueue.Count);
         }
     }
 }

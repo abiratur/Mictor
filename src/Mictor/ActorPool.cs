@@ -15,30 +15,22 @@ namespace Mictor
         {
             while (true)
             {
-                // ReSharper disable once InconsistentlySynchronizedField
-                if (_actors.TryGetValue(key, out var worker))
+                if (_actors.TryGetValue(key, out var actor))
                 {
-                    lock (worker)
+                    if (actor.TryCreateHandle(out ActorHandle? actorHandle))
                     {
-                        // check if the actor has been disposed since we took the value
-                        // if it was, then create it again
-                        if (_actors.ContainsKey(key))
-                        {
-                            worker.Consumers++;
-                            return worker;
-                        }
+                        return actorHandle!;
                     }
                 }
 
-                worker = new Actor(this, key) {Consumers = 1};
+                actor = Actor.Create(this, key, out var handle);
 
                 // 2 threads can reach this point, but only one can enter the "if"
 
-                // ReSharper disable once InconsistentlySynchronizedField
-                if (_actors.TryAdd(key, worker))
+                if (_actors.TryAdd(key, actor))
                 {
-                    worker.Start();
-                    return worker;
+                    actor.Start();
+                    return handle;
                 }
             }
         }
