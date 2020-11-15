@@ -23,6 +23,7 @@ namespace Mictor
         }
 
         public int Count => _dictionary.Count;
+
         public bool ContainsKey(string key)
         {
             return _dictionary.ContainsKey(key);
@@ -36,6 +37,7 @@ namespace Mictor
         public ActorSnapshot this[string key] => _dictionary[key];
 
         public IEnumerable<string> Keys => _dictionary.Keys;
+
         public IEnumerable<ActorSnapshot> Values => _dictionary.Values;
     }
 }
