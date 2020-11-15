@@ -20,7 +20,7 @@ namespace Mictor
                     {
                         // check if the actor has been disposed since we took the value
                         // if it was, then create it again
-                        if (worker.Consumers > 0 && _actors.ContainsKey(key))
+                        if (_actors.ContainsKey(key))
                         {
                             worker.Consumers++;
                             return worker;

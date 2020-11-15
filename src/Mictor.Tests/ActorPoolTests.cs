@@ -36,6 +36,28 @@ namespace Mictor.Tests
         }
 
         [Test]
+        public void GetOrCreateShouldReturnWorkingActorWithNoHandles()
+        {
+            var target = new ActorPool();
+
+            var e = new ManualResetEventSlim(false);
+
+            Task Work()
+            {
+                e.Wait();
+                return Task.CompletedTask;
+            }
+
+            using (var actor = target.GetOrCreate("a"))
+            {
+                actor.Enqueue(Work);
+            }
+
+            // this should not block
+            using var temp = target.GetOrCreate("a");
+        }
+
+        [Test]
         public void ParallelTest()
         {
             var random = new Random();
