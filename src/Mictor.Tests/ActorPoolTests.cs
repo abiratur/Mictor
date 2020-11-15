@@ -32,7 +32,7 @@ namespace Mictor.Tests
 
             Thread.Sleep(100);
 
-            target.EstimatedCount.Should().Be(0);
+            target.TakeSnapshot().Count.Should().Be(0);
         }
 
         [Test]
@@ -58,7 +58,7 @@ namespace Mictor.Tests
         }
 
         [Test]
-        public void ParallelTest()
+        public void RandomParallelTest()
         {
             var random = new Random();
 
@@ -78,10 +78,10 @@ namespace Mictor.Tests
 
             Parallel.For(0, 100, _ =>
             {
-                using (var worker = target.GetOrCreate("a"))
+                using (IActor actor = target.GetOrCreate("a"))
                 {
                     Thread.Sleep(random.Next(50));
-                    worker.Enqueue(Work);
+                    actor.Enqueue(Work);
                 }
             });
 

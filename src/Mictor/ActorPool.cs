@@ -53,8 +53,6 @@ namespace Mictor
             return new ActorPoolSnapshot(dict);
         }
 
-        internal int EstimatedCount => _actors.Count;
-
         internal void Return(Actor actor)
         {
             if (!_actors.TryRemove(actor.Key, out _))
