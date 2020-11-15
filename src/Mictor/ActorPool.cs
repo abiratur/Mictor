@@ -57,16 +57,10 @@ namespace Mictor
 
         internal void Return(Actor actor)
         {
-            // there are no consumers - meaning no more work can be queued while inside this lock
-            // check the number of queued work
-
             if (!_actors.TryRemove(actor.Key, out _))
             {
                 throw new InvalidOperationException(); // should never happen
             }
-
-            // at this point there are not more reference to the actor, so no one can enqueue.
-
         }
     }
 }

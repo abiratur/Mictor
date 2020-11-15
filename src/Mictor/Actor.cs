@@ -70,6 +70,11 @@ namespace Mictor
                 {
                     if (_workQueue.Count == 0 && Consumers == 0)
                     {
+                        // at this point:
+                        // 1. there are no consumers - meaning no more work can be queued while inside this lock
+                        // 2. no more consumers can be added, since we have taking the
+                        // 3. no more work can be added (because of lock)
+
                         _owner.Return(this);
                         return;
                     }
