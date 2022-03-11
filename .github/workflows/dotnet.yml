@@ -16,13 +16,22 @@ jobs:
       with:
         submodules: recursive
         fetch-depth: 0 # avoid shallow clone so nbgv can do its work.
+
     - name: Setup .NET
       uses: actions/setup-dotnet@v1
       with:
         dotnet-version: 6.0.x
+
     - name: Restore dependencies
       run: dotnet restore
+
     - name: Build
-      run: dotnet build --no-restore
+      run: dotnet build --no-restore -c Release
+
     - name: Test
-      run: dotnet test --no-build --verbosity normal
+      run: dotnet test --no-build --logger GitHubActions
+
+    - name: Upload coverage    
+      uses: codecov/codecov-action@v1.0.5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
