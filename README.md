@@ -1,7 +1,7 @@
 
 # Mictor
 
-[![Build](https://github.com/abiratur/Mictor/workflows/dotnet/badge.svg?branch=main)](https://github.com/abiratur/Mictor/actions)
+[![Build](https://github.com/abiratur/Mictor/actions/workflows/dotnet.yml/badge.svg?branch=main)](https://github.com/abiratur/Mictor/actions)
 [![Coverage](https://codecov.io/gh/abiratur/Mictor/branch/main/graph/badge.svg)](https://codecov.io/gh/abiratur/Mictor)
 
 Mictor is a micro library that implements the [Actor Model](https://en.wikipedia.org/wiki/Actor_model) in memory.
