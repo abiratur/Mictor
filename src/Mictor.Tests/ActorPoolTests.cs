@@ -2,64 +2,63 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
-using NUnit.Framework;
+using Xunit;
 
 namespace Mictor.Tests
 {
     public class ActorPoolTests
     {
-        [Test]
-        public void GetOrCreateTest()
+        [Fact]
+        public void active_actor_should_have_reference()
         {
+            // arrange
             var target = new ActorPool();
 
-            var countdownEvent = new CountdownEvent(3);
+            // act
+            using var actor = target.GetOrCreate(Guid.NewGuid().ToString());
 
-            using (IActor actor = target.GetOrCreate("a"))
-            {
-                Task Func()
-                {
-                    countdownEvent.Signal();
-                    return Task.CompletedTask;
-                }
-
-                actor.Enqueue(Func);
-                actor.Enqueue(Func);
-                actor.Enqueue(Func);
-            }
-
-            countdownEvent.Wait(TimeSpan.FromSeconds(1)).Should().Be(true);
-
-            Thread.Sleep(100);
-
-            target.TakeSnapshot().Count.Should().Be(0);
+            // assert
+            target.TakeSnapshot().Count.Should().Be(1);
         }
 
-        [Test]
-        public void GetOrCreateShouldReturnWorkingActorWithNoHandles()
+        [Fact]
+        public void active_actor_should_have_multiple_reference()
         {
+            // arrange
             var target = new ActorPool();
 
-            var e = new ManualResetEventSlim(false);
+            var id = Guid.NewGuid().ToString();
 
-            Task Work()
-            {
-                e.Wait();
-                return Task.CompletedTask;
-            }
+            // act
+            using var actor = target.GetOrCreate(id);
+            using var actor2 = target.GetOrCreate(id);
 
-            using (var actor = target.GetOrCreate("a"))
-            {
-                actor.Enqueue(Work);
-            }
-
-            // this should not block
-            using var temp = target.GetOrCreate("a");
+            // assert
+            ActorPoolSnapshot snapshot = target.TakeSnapshot();
+            snapshot.Count.Should().Be(1);
+            snapshot[id].QueuedWork.Should().Be(0);
+            snapshot[id].References.Should().Be(2);
         }
 
-        [Test]
-        public void RandomParallelTest()
+        [Fact]
+        public void inactive_actor_should_not_have_reference()
         {
+            // arrange
+            var target = new ActorPool();
+
+            // act
+            using (var actor = target.GetOrCreate(Guid.NewGuid().ToString()))
+            {
+            }
+
+            // assert
+            target.TakeSnapshot().Count.Should().Be(1);
+        }
+
+        [Fact]
+        public void multiple_actor_references_should_run_sequentially()
+        {
+            // arrange
             var random = new Random();
 
             var target = new ActorPool();
@@ -76,15 +75,19 @@ namespace Mictor.Tests
                 count = temp;
             }
 
+            var id = Guid.NewGuid().ToString();
+
+            // act
             Parallel.For(0, 100, _ =>
             {
-                using (IActor actor = target.GetOrCreate("a"))
+                using (IActor actor = target.GetOrCreate(id))
                 {
-                    Thread.Sleep(random.Next(50));
+                    Thread.Sleep(random.Next(10));
                     actor.Enqueue(Work);
                 }
             });
 
+            // assert
             Thread.Sleep(5);
             count.Should().Be(100);
         }

@@ -20,7 +20,6 @@ namespace Mictor
         /// </summary>
         /// <typeparam name="TResult"></typeparam>
         /// <param name="work"></param>
-        /// <returns></returns>
         Task<TResult> Enqueue<TResult>(Func<Task<TResult>> work);
     }
 }

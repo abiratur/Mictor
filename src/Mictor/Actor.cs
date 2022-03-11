@@ -2,34 +2,33 @@
 using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
+using Serilog;
 
 namespace Mictor
 {
     /// <summary>
-    /// When does the worker stops:
-    /// The Actor.Dispose() is called, The worker has 0 consumers AND has no more messages to consume AND worker is blocked on semaphore.Wait()
-    /// in this case we need to make sure that no more handles are being created
+    /// Represents an actor with an id
     /// </summary>
     internal class Actor
     {
-        private readonly ActorPool _owner;
-        private readonly SemaphoreSlim _semaphoreSlim = new SemaphoreSlim(0);
+        private readonly Action<Actor> _onTerminated;
+        private readonly SemaphoreSlim _workSemaphore = new SemaphoreSlim(0); // used to signal work/dispose events
         private readonly ConcurrentQueue<Func<Task>> _workQueue = new ConcurrentQueue<Func<Task>>();
 
         private bool _disposed;
-        private int _handles;
+        private int _references;
 
-        private Actor(ActorPool owner, string key)
+        private Actor(string key, Action<Actor> onTerminated)
         {
-            _owner = owner;
             Key = key;
+            _onTerminated = onTerminated;
         }
 
-        internal static Actor Create(ActorPool owner, string key, out ActorHandle actorHandle)
+        internal static Actor Create(Action<Actor> onTerminated, string key, out ActorReference actorReference)
         {
-            var actor = new Actor(owner, key);
-            actorHandle = new ActorHandle(actor);
-            
+            var actor = new Actor(key, onTerminated);
+            actorReference = new ActorReference(actor);
+
             return actor;
         }
 
@@ -37,8 +36,9 @@ namespace Mictor
 
         public void Enqueue(Func<Task> work)
         {
+            Log.Verbose("Enqueue work for actor {Key}", Key);
             _workQueue.Enqueue(work);
-            _semaphoreSlim.Release();
+            _workSemaphore.Release();
         }
 
         public Task<TResult> Enqueue<TResult>(Func<Task<TResult>> work)
@@ -60,10 +60,10 @@ namespace Mictor
 
             return tcs.Task;
         }
-        
+
         internal ActorSnapshot TakeSnapshot()
         {
-            return new ActorSnapshot(_handles, _workQueue.Count);
+            return new ActorSnapshot(_references, _workQueue.Count);
         }
 
         internal void Start()
@@ -71,17 +71,17 @@ namespace Mictor
             _ = RunAsync();
         }
 
-        internal bool TryCreateHandle(out ActorHandle? actorHandle)
+        internal bool TryCreateReference(out ActorReference? actorReference)
         {
             lock (this)
             {
                 if (_disposed)
                 {
-                    actorHandle = default;
+                    actorReference = default;
                     return false;
                 }
 
-                actorHandle = new ActorHandle(this);
+                actorReference = new ActorReference(this);
                 return true;
             }
         }
@@ -90,18 +90,21 @@ namespace Mictor
         {
             while (true)
             {
-                await _semaphoreSlim.WaitAsync();
+                Log.Verbose("Waiting for work in actor {Key}", Key);
+                await _workSemaphore.WaitAsync();
 
+                // we lock in order to prevent others from acquiring a reference to this actor, while checking if needs termination.
                 lock (this)
                 {
-                    if (_workQueue.Count == 0 && _handles == 0)
+                    if (_workQueue.Count == 0 && _references == 0)
                     {
                         // at this point:
                         // 1. there are no consumers - meaning no more work can be queued while inside this lock
                         // 2. no more consumers can be added, since we have taking the
                         // 3. no more work can be added (because of lock)
 
-                        _owner.Return(this);
+                        Log.Verbose("Terminating actor {Key}", Key);
+                        _onTerminated(this);
                         _disposed = true;
                         return;
                     }
@@ -109,31 +112,35 @@ namespace Mictor
 
                 if (!_workQueue.TryDequeue(out var work))
                 {
+                    Log.Verbose("Could not dequeue work for actor {Key}", Key);
                     continue;
                 }
 
                 try
                 {
+                    Log.Verbose("Executing work for actor {Key}", Key);
                     await work();
                 }
-                catch
+                catch(Exception ex)
                 {
-                    // ignored
+                    Log.Warning(ex, "Caught exception for actor {Key}", Key);
                 }
             }
         }
 
-        internal void IncrementHandles()
+        internal void IncrementReferences()
         {
-            _handles++;
+            _references++;
+            Log.Verbose("Incremented references to {Refs} for actor {Key}", _references, Key);
         }
 
-        internal void DecrementHandles()
+        internal void DecrementReferences()
         {
             lock (this)
             {
-                _handles--;
-                _semaphoreSlim.Release();
+                _references--;
+                _workSemaphore.Release();
+                Log.Verbose("Decremented references to {Refs} for actor {Key}", _references, Key);
             }
         }
     }
