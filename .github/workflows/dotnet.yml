@@ -29,7 +29,7 @@ jobs:
       run: dotnet build --no-restore -c Release
 
     - name: Test
-      run: dotnet test --no-build --logger GitHubActions
+      run: dotnet test --no-build --logger GitHubActions --configuration Release
 
     - name: Upload coverage    
       uses: codecov/codecov-action@v1.0.5
