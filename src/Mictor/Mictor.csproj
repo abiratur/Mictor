@@ -12,13 +12,12 @@
     <PackageTags>actor;threading</PackageTags>
     <RepositoryUrl>https://github.com/abiratur/Mictor/</RepositoryUrl>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
-    <Platforms>x64</Platforms>
-    <!--TreatWarningsAsErrors>True</TreatWarningsAsErrors-->
+    <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
 
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Nerdbank.GitVersioning" Version="3.3.37">
+    <PackageReference Include="Nerdbank.GitVersioning" Version="3.4.255">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
