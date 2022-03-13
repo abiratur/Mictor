@@ -14,10 +14,15 @@ PrintSnapshot();
 Console.ReadLine();
 PrintSnapshot();
 
-
 void PrintSnapshot()
 {
     ActorPoolSnapshot snapshot = ActorPool.Shared.TakeSnapshot();
+
+    if (snapshot.Count == 0)
+    {
+        Console.WriteLine("No actors are active");
+        return;
+    }
 
     foreach ((string key, ActorSnapshot actorSnapshot) in snapshot)
     {
